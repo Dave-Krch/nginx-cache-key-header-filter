@@ -5,7 +5,7 @@
 
 static ngx_int_t ngx_http_cache_key_header(ngx_http_request_t *r);
 static ngx_int_t ngx_http_cache_key_header_init(ngx_conf_t *cf);
-void arrayToHex(u_char* input, u_char* output);
+void key_to_hex(u_char* input, u_char* output);
 
 
 
@@ -54,15 +54,7 @@ ngx_http_cache_key_header(ngx_http_request_t *r)
 
 #if (NGX_HTTP_CACHE)
 
-    //Get key adn convert to hexadecimal
-    u_char key[NGX_HTTP_CACHE_KEY_LEN];
-    memcpy(key, r->cache->key, NGX_HTTP_CACHE_KEY_LEN);
-
-    u_char key_hex[(NGX_HTTP_CACHE_KEY_LEN * 2) + 1];
-
-    arrayToHex(key, key_hex);
-
-    //Adds header
+    //Add header
     h = ngx_list_push(&r->headers_out.headers);
     if (h == NULL) {
         return NGX_ERROR;
@@ -70,7 +62,26 @@ ngx_http_cache_key_header(ngx_http_request_t *r)
 
     h->hash = 1;
     ngx_str_set(&h->key, "X-Cache-Key");
+    ngx_str_set(&h->value, r->cache->key);
+
+
+    //Add header key hexadec
+    u_char key[NGX_HTTP_CACHE_KEY_LEN];
+    memcpy(key, r->cache->key, NGX_HTTP_CACHE_KEY_LEN);
+
+    u_char key_hex[(NGX_HTTP_CACHE_KEY_LEN * 2) + 1];
+
+    key_to_hex(key, key_hex);
+
+    h = ngx_list_push(&r->headers_out.headers);
+    if (h == NULL) {
+        return NGX_ERROR;
+    }
+
+    h->hash = 1;
+    ngx_str_set(&h->key, "X-Cache-Key-Hexadec");
     ngx_str_set(&h->value, key_hex);
+
 #endif
 
     return ngx_http_next_header_filter(r);
@@ -85,7 +96,7 @@ ngx_http_cache_key_header_init(ngx_conf_t *cf)
     return NGX_OK;
 }
 
-void arrayToHex(u_char* input, u_char* output) {
+void key_to_hex(u_char* input, u_char* output) {
     for (int i = 0; i < NGX_HTTP_CACHE_KEY_LEN; i++) {
         sprintf((char*)&output[i*2], "%02X", input[i]);
     }
